@@ -14,7 +14,7 @@
       </div>
       <div class="card-body">
         <p><strong>Group ID:</strong> {{ library.groupId }}</p>
-        <p><strong>Last Update:</strong> {{ library.lastUpdate | date('YYYY-MM-DD') }}</p>
+        <p><strong>Last Update:</strong> {% if library.lastUpdate %}{{ library.lastUpdate | date('YYYY-MM-DD') }}{% else %}Unknown{% endif %}</p>
 
         <h6 class="mt-4">Available Versions</h6>
         <ul class="list-group">
@@ -124,7 +124,7 @@
           {% for version in library.versions %}
           <tr>
             <td>{{ version.version }}</td>
-            <td>{{ version.releaseDate | date('YYYY-MM-DD') }}</td>
+            <td>{% if version.releaseDate %}{{ version.releaseDate | date('YYYY-MM-DD') }}{% else %}Unknown{% endif %}</td>
             <td>
               <span class="badge {% if version.releaseType == 'Stable' %}bg-success{% elif version.releaseType == 'RC' %}bg-warning{% elif version.releaseType == 'Beta' %}bg-info{% else %}bg-secondary{% endif %}">
                 {{ version.releaseType }}
