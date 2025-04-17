@@ -1,0 +1,108 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Generated Version Catalog</h1>
+  <a href="/" class="btn btn-outline-primary">Back to List</a>
+</div>
+
+<div class="alert alert-success">
+  <p class="mb-0">Version catalog generated successfully with {{ Object.keys(catalogData.versions).length }} libraries.</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0">libs.versions.toml</h5>
+    <button class="btn btn-sm btn-outline-primary" id="copyToml">Copy to Clipboard</button>
+  </div>
+  <div class="card-body">
+    <pre class="bg-light p-3 rounded" id="tomlContent"><code># Generated AndroidX Version Catalog
+
+[versions]
+{% for key, value in catalogData.versions %}
+{{ key }} = "{{ value }}"
+{% endfor %}
+
+[libraries]
+{% for key, lib in catalogData.libraries %}
+{{ key }} = { module = "{{ lib.module }}", version.ref = "{{ lib.versionRef }}" }
+{% endfor %}
+</code></pre>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0">Usage in build.gradle.kts</h5>
+    <button class="btn btn-sm btn-outline-primary" id="copyGradle">Copy to Clipboard</button>
+  </div>
+  <div class="card-body">
+    <pre class="bg-light p-3 rounded" id="gradleContent"><code>plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+dependencies {
+    // AndroidX libraries
+{% for key, lib in catalogData.libraries %}
+    implementation(libs.{{ key | replace('_', '.') }})
+{% endfor %}
+}
+</code></pre>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="card-title mb-0">Selected Libraries</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Library</th>
+            <th>Selected Version</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lib in libraries %}
+          <tr>
+            <td>
+              <a href="/library/{{ lib.name }}">{{ lib.name }}</a>
+            </td>
+            <td>
+              {{ catalogData.versions[lib.name | replace('-', '_')] }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('copyToml').addEventListener('click', function() {
+    const content = document.getElementById('tomlContent').textContent;
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        this.textContent = 'Copied!';
+        setTimeout(() => {
+          this.textContent = 'Copy to Clipboard';
+        }, 2000);
+      });
+  });
+
+  document.getElementById('copyGradle').addEventListener('click', function() {
+    const content = document.getElementById('gradleContent').textContent;
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        this.textContent = 'Copied!';
+        setTimeout(() => {
+          this.textContent = 'Copy to Clipboard';
+        }, 2000);
+      });
+  });
+</script>
+{% endblock %}

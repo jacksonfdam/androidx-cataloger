@@ -1,0 +1,31 @@
+version: '3.8'
+
+networks:
+  androidx-network:
+    driver: bridge
+
+services:
+  node-service:
+    build: .
+    container_name: androidx-node
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - androidx-network
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/androidx
+
+  mongodb:
+    image: mongo:latest
+    container_name: androidx-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb:/data/db
+    networks:
+      - androidx-network

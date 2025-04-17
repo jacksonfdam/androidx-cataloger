@@ -1,0 +1,12 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+<div class="alert alert-danger">
+  <h4 class="alert-heading">Error</h4>
+  <p>{{ message }}</p>
+</div>
+
+<div class="text-center mt-4">
+  <a href="/" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}

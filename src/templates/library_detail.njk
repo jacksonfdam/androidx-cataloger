@@ -1,0 +1,140 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>{{ library.name }}</h1>
+  <a href="/" class="btn btn-outline-primary">Back to List</a>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Library Information</h5>
+      </div>
+      <div class="card-body">
+        <p><strong>Group ID:</strong> {{ library.groupId }}</p>
+        <p><strong>Last Update:</strong> {{ library.lastUpdate | date('YYYY-MM-DD') }}</p>
+
+        <h6 class="mt-4">Available Versions</h6>
+        <ul class="list-group">
+          {% if library.stableRelease %}
+            <li class="list-group-item list-group-item-success">
+              <strong>Stable:</strong> {{ library.stableRelease }}
+            </li>
+          {% endif %}
+          {% if library.rcRelease %}
+            <li class="list-group-item list-group-item-warning">
+              <strong>RC:</strong> {{ library.rcRelease }}
+            </li>
+          {% endif %}
+          {% if library.betaRelease %}
+            <li class="list-group-item list-group-item-info">
+              <strong>Beta:</strong> {{ library.betaRelease }}
+            </li>
+          {% endif %}
+          {% if library.alphaRelease %}
+            <li class="list-group-item list-group-item-light">
+              <strong>Alpha:</strong> {{ library.alphaRelease }}
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Implementation</h5>
+      </div>
+      <div class="card-body">
+        <h6>Gradle Implementation</h6>
+        <pre class="bg-light p-3 rounded"><code>implementation("{{ library.groupId }}:{{ library.name }}:${{ library.name | replace('-', '_') }}_version")</code></pre>
+
+        <h6 class="mt-3">Version Catalog</h6>
+        <pre class="bg-light p-3 rounded"><code>[versions]
+{{ library.name | replace('-', '_') }} = "{{ library.stableRelease or library.rcRelease or library.betaRelease or library.alphaRelease }}"
+
+[libraries]
+{{ library.name | replace('-', '_') }} = { module = "{{ library.groupId }}:{{ library.name }}", version.ref = "{{ library.name | replace('-', '_') }}" }</code></pre>
+
+        <div class="mt-3">
+          <a href="{{ library.mavenUrl }}" target="_blank" class="btn btn-outline-secondary">
+            View on Maven Repository
+          </a>
+          <a href="https://developer.android.com/jetpack/androidx/releases/{{ library.name }}" target="_blank" class="btn btn-outline-secondary">
+            View Documentation
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if library.dependencies and library.dependencies.length > 0 %}
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="card-title mb-0">Available Dependencies</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Artifact</th>
+            <th>Group ID</th>
+            <th>Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dep in library.dependencies %}
+          <tr>
+            <td>{{ dep.name }}</td>
+            <td>{{ dep.artifact }}</td>
+            <td>{{ dep.groupId }}</td>
+            <td>
+              <code>implementation("{{ dep.groupId }}:{{ dep.artifact }}:${{ library.name | replace('-', '_') }}_version")</code>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="card-title mb-0">Version History</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Release Date</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for version in library.versions %}
+          <tr>
+            <td>{{ version.version }}</td>
+            <td>{{ version.releaseDate | date('YYYY-MM-DD') }}</td>
+            <td>
+              <span class="badge {% if version.releaseType == 'Stable' %}bg-success{% elif version.releaseType == 'RC' %}bg-warning{% elif version.releaseType == 'Beta' %}bg-info{% else %}bg-secondary{% endif %}">
+                {{ version.releaseType }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
