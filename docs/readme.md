@@ -28,7 +28,6 @@ Now when I’m too lazy to dig through pages or remember the latest version of s
 ![image](https://github.com/user-attachments/assets/31ed8eea-ae9c-42b5-8968-72fbb31752aa)
 ![image](https://github.com/user-attachments/assets/c3f7e3e5-efaf-4765-9f36-ded1c95042fc)
 ![image](https://github.com/user-attachments/assets/bacbab38-f5c8-4c0e-886a-a13f710d2daf)
-
 ![image](https://github.com/user-attachments/assets/c26a4c12-71d7-4b4a-a1a4-06e3fa9f2f7a)
 
 Is it perfect? Nope.
