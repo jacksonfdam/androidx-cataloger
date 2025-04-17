@@ -74,8 +74,30 @@ async function getLibraryByName(req, res) {
   }
 }
 
+// Clear all libraries from database
+async function clearDatabase(req, res) {
+  try {
+    const result = await Library.deleteMany({});
+
+    res.json({
+      success: true,
+      message: 'Database cleared successfully',
+      deleted: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Error clearing database:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear database',
+      error: error.message
+    });
+  }
+}
+
+
 module.exports = {
   syncLibraries,
   getAllLibraries,
-  getLibraryByName
+  getLibraryByName,
+  clearDatabase
 };

@@ -83,24 +83,28 @@ router.get('/', async (req, res) => {
           // Add to versions section
           catalogData.versions[versionKey] = selectedVersion;
 
-          // Add dependencies to libraries section
-          library.dependencies.forEach(dep => {
-            const depKey = dep.artifact.replace(/\./g, '_');
-            catalogData.libraries[depKey] = {
-              module: `${dep.groupId}:${dep.artifact}`,
-              versionRef: versionKey
-            };
-          });
+          // Add main library to libraries section
+          catalogData.libraries[versionKey] = {
+            module: `${library.groupId}:${library.name}`,
+            versionRef: versionKey
+          };
 
-          // If no dependencies, add the main library
-          if (library.dependencies.length === 0) {
-            catalogData.libraries[versionKey] = {
-              module: `${library.groupId}:${library.name}`,
-              versionRef: versionKey
-            };
+          // Add dependencies to libraries section if they exist
+          if (library.dependencies && library.dependencies.length > 0) {
+            library.dependencies.forEach(dep => {
+              if (dep && dep.name && dep.artifact) {
+                const depKey = `${versionKey}_${dep.name.replace(/-/g, '_')}`;
+                catalogData.libraries[depKey] = {
+                  module: `${dep.groupId || library.groupId}:${dep.artifact}`,
+                  versionRef: versionKey
+                };
+              }
+            });
           }
         }
       });
+
+      console.log(`Generated catalog with ${Object.keys(catalogData.versions).length} versions and ${Object.keys(catalogData.libraries).length} libraries`);
 
       res.render('catalog_result', {
         title: 'Generated Version Catalog',

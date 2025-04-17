@@ -29,7 +29,11 @@ const librarySchema = new mongoose.Schema({
   dependencies: [{
     name: String,
     artifact: String,
-    groupId: String
+    groupId: String,
+    stableRelease: String,
+    rcRelease: String,
+    betaRelease: String,
+    alphaRelease: String
   }],
   mavenUrl: String
 });

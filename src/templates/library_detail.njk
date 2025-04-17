@@ -19,24 +19,24 @@
         <h6 class="mt-4">Available Versions</h6>
         <ul class="list-group">
           {% if library.stableRelease %}
-            <li class="list-group-item list-group-item-success">
-              <strong>Stable:</strong> {{ library.stableRelease }}
-            </li>
+          <li class="list-group-item list-group-item-success">
+            <strong>Stable:</strong> {{ library.stableRelease }}
+          </li>
           {% endif %}
           {% if library.rcRelease %}
-            <li class="list-group-item list-group-item-warning">
-              <strong>RC:</strong> {{ library.rcRelease }}
-            </li>
+          <li class="list-group-item list-group-item-warning">
+            <strong>RC:</strong> {{ library.rcRelease }}
+          </li>
           {% endif %}
           {% if library.betaRelease %}
-            <li class="list-group-item list-group-item-info">
-              <strong>Beta:</strong> {{ library.betaRelease }}
-            </li>
+          <li class="list-group-item list-group-item-info">
+            <strong>Beta:</strong> {{ library.betaRelease }}
+          </li>
           {% endif %}
           {% if library.alphaRelease %}
-            <li class="list-group-item list-group-item-light">
-              <strong>Alpha:</strong> {{ library.alphaRelease }}
-            </li>
+          <li class="list-group-item list-group-item-light">
+            <strong>Alpha:</strong> {{ library.alphaRelease }}
+          </li>
           {% endif %}
         </ul>
       </div>
@@ -57,7 +57,37 @@
 {{ library.name | replace('-', '_') }} = "{{ library.stableRelease or library.rcRelease or library.betaRelease or library.alphaRelease }}"
 
 [libraries]
-{{ library.name | replace('-', '_') }} = { module = "{{ library.groupId }}:{{ library.name }}", version.ref = "{{ library.name | replace('-', '_') }}" }</code></pre>
+{{ library.name | replace('-', '_') }} = { module = "{{ library.groupId }}:{{ library.name }}", version.ref = "{{ library.name | replace('-', '_') }}" }
+</code></pre>
+
+        <h6 class="mt-3">Usage in build.gradle.kts</h6>
+        <pre class="bg-light p-3 rounded"><code>dependencies {
+  implementation(libs.{{ library.name | replace('-', '_') }})
+}
+</code></pre>
+
+        {% if library.dependencies and library.dependencies.length > 0 %}
+        <h6 class="mt-3">Dependencies Usage</h6>
+        <pre class="bg-light p-3 rounded"><code>dependencies {
+  // Main library
+  implementation(libs.{{ library.name | replace('-', '_') }})
+
+  // Additional artifacts {% for dep in library.dependencies %}
+  implementation(libs.{{ library.name | replace('-', '_') }}.{{ dep.name | replace('-', '_') }})
+  {% endfor %}
+  }</code></pre>
+
+        <h6 class="mt-3">Complete Version Catalog</h6>
+        <pre class="bg-light p-3 rounded"><code>[versions]
+{{ library.name | replace('-', '_') }} = "{{ library.stableRelease or library.rcRelease or library.betaRelease or library.alphaRelease }}"
+
+[libraries]
+{{ library.name | replace('-', '_') }} = { module = "{{ library.groupId }}:{{ library.name }}", version.ref = "{{ library.name | replace('-', '_') }}" }
+{% for dep in library.dependencies %}
+{{ library.name | replace('-', '_') }}_{{ dep.name | replace('-', '_') }} = { module = "{{ dep.groupId }}:{{ dep.artifact }}", version.ref = "{{ library.name | replace('-', '_') }}" }
+{% endfor %}
+  </code></pre>
+        {% endif %}
 
         <div class="mt-3">
           <a href="{{ library.mavenUrl }}" target="_blank" class="btn btn-outline-secondary">
@@ -72,6 +102,8 @@
   </div>
 </div>
 
+<!-- Atualizar a seção de dependências em src/templates/library_detail.njk -->
+
 {% if library.dependencies and library.dependencies.length > 0 %}
 <div class="card mt-4">
   <div class="card-header">
@@ -85,6 +117,7 @@
             <th>Name</th>
             <th>Artifact</th>
             <th>Group ID</th>
+            <th>Versions</th>
             <th>Implementation</th>
           </tr>
         </thead>
@@ -94,6 +127,20 @@
             <td>{{ dep.name }}</td>
             <td>{{ dep.artifact }}</td>
             <td>{{ dep.groupId }}</td>
+            <td>
+              {% if dep.stableRelease %}
+              <span class="badge bg-success">{{ dep.stableRelease }}</span>
+              {% endif %}
+              {% if dep.rcRelease %}
+              <span class="badge bg-warning">{{ dep.rcRelease }}</span>
+              {% endif %}
+              {% if dep.betaRelease %}
+              <span class="badge bg-info">{{ dep.betaRelease }}</span>
+              {% endif %}
+              {% if dep.alphaRelease %}
+              <span class="badge bg-secondary">{{ dep.alphaRelease }}</span>
+              {% endif %}
+            </td>
             <td>
               <code>implementation("{{ dep.groupId }}:{{ dep.artifact }}:${{ library.name | replace('-', '_') }}_version")</code>
             </td>

@@ -7,7 +7,7 @@
 </div>
 
 <div class="alert alert-success">
-  <p class="mb-0">Version catalog generated successfully with {{ Object.keys(catalogData.versions).length }} libraries.</p>
+  <p class="mb-0">Version catalog generated successfully with {{ libraries.length }} libraries.</p>
 </div>
 
 <div class="card mb-4">
@@ -17,15 +17,11 @@
   </div>
   <div class="card-body">
     <pre class="bg-light p-3 rounded" id="tomlContent"><code># Generated AndroidX Version Catalog
-
-[versions]
-{% for key, value in catalogData.versions %}
-{{ key }} = "{{ value }}"
+[versions] {% for key, value in catalogData.versions %}{{ key }} = "{{ value }}"
 {% endfor %}
 
 [libraries]
-{% for key, lib in catalogData.libraries %}
-{{ key }} = { module = "{{ lib.module }}", version.ref = "{{ lib.versionRef }}" }
+{% for key, lib in catalogData.libraries %}{{ key }} = { module = "{{ lib.module }}", version.ref = "{{ lib.versionRef }}" }
 {% endfor %}
 </code></pre>
   </div>
@@ -43,12 +39,26 @@
 }
 
 dependencies {
-    // AndroidX libraries
-{% for key, lib in catalogData.libraries %}
-    implementation(libs.{{ key | replace('_', '.') }})
+// AndroidX libraries
+{% for key, lib in catalogData.libraries %} implementation(libs.{{ key | replace('_', '.') }})
 {% endfor %}
 }
 </code></pre>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0">Grouped by Library</h5>
+    <button class="btn btn-sm btn-outline-primary" id="copyGrouped">Copy to Clipboard</button>
+  </div>
+  <div class="card-body">
+    <pre class="bg-light p-3 rounded" id="groupedContent"><code>dependencies {
+{% for lib in libraries %}//{{ lib.name }}
+implementation(libs.{{ lib.name | replace('-', '.') }}){% if lib.dependencies and lib.dependencies.length > 0 %}{% for dep in lib.dependencies %}
+implementation(libs.{{ lib.name | replace('-', '.') }}.{{ dep.name | replace('-', '.') }}){% endfor %}
+{% endif %}
+{% endfor %}}</code></pre>
   </div>
 </div>
 
@@ -96,6 +106,17 @@ dependencies {
 
   document.getElementById('copyGradle').addEventListener('click', function() {
     const content = document.getElementById('gradleContent').textContent;
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        this.textContent = 'Copied!';
+        setTimeout(() => {
+          this.textContent = 'Copy to Clipboard';
+        }, 2000);
+      });
+  });
+
+  document.getElementById('copyGrouped').addEventListener('click', function() {
+    const content = document.getElementById('groupedContent').textContent;
     navigator.clipboard.writeText(content)
       .then(() => {
         this.textContent = 'Copied!';

@@ -7,5 +7,6 @@ const router = express.Router();
 router.get('/sync', controllers.syncLibraries);
 router.get('/libraries', controllers.getAllLibraries);
 router.get('/library/:name', controllers.getLibraryByName);
+router.get('/clear', controllers.clearDatabase);
 
 module.exports = router;
