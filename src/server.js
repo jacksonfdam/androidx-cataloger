@@ -10,12 +10,30 @@ const frontendRoutes = require('./frontend/routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Configure Nunjucks
-nunjucks.configure(path.join(__dirname, 'templates'), {
+// Configure Nunjucks with custom filters
+const env = nunjucks.configure(path.join(__dirname, 'templates'), {
   autoescape: true,
   express: app,
-  noCache: process.env.NODE_ENV === 'development'
+  noCache: isDevelopment // Disable cache in development
+});
+
+// Add date filter
+env.addFilter('date', function(date, format) {
+  if (!date) return '';
+
+  const d = new Date(date);
+
+  if (isNaN(d.getTime())) return '';
+
+  if (format === 'YYYY-MM-DD') {
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
+  }
+
+  return d.toLocaleDateString();
 });
 
 app.set('view engine', 'njk');
@@ -24,6 +42,14 @@ app.set('view engine', 'njk');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Development middleware
+if (isDevelopment) {
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+}
 
 // Routes
 app.use('/api', apiRoutes);
@@ -37,5 +63,8 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running in ${isDevelopment ? 'development' : 'production'} mode on port ${PORT}`);
+  if (isDevelopment) {
+    console.log('Hot reloading enabled - server will restart on file changes');
+  }
 });

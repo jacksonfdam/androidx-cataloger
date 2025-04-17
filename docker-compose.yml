@@ -19,6 +19,9 @@ services:
       - androidx-network
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/androidx
+      - NODE_ENV=development
+    # Adicionar configuração para reiniciar automaticamente
+    restart: unless-stopped
 
   mongodb:
     image: mongo:latest
@@ -29,3 +32,4 @@ services:
       - ./data/mongodb:/data/db
     networks:
       - androidx-network
+    restart: unless-stopped

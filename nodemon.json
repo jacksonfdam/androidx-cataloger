@@ -1,0 +1,13 @@
+{
+    "verbose": true,
+    "ignore": [
+        "node_modules/*",
+        "data/*",
+        "public/*",
+        ".git/*"
+    ],
+    "watch": [
+        "src/"
+    ],
+    "ext": "js,json,njk"
+}

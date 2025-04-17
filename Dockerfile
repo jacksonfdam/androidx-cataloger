@@ -10,4 +10,5 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Use nodemon in development mode
+CMD ["npm", "run", "dev"]
