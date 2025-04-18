@@ -95,10 +95,9 @@ async function clearDatabase(req, res) {
   }
 }
 
-// Add this function to src/api/controllers.js
-
 /**
  * Fix specific known problematic TOML content
+ * I know, its a workaround....
  */
 function fixKnownProblems(content) {
   // Replace problematic keys with quoted versions
