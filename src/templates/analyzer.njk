@@ -1,0 +1,651 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Version Catalog Analyzer</h1>
+  <a href="/" class="btn btn-outline-primary">Back to Home</a>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Paste or Upload TOML File</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="tomlContent" class="form-label">TOML Content</label>
+          <textarea class="form-control" id="tomlContent" rows="15" placeholder="Paste your Version Catalog (TOML) content here..."></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label for="tomlFile" class="form-label">Or Upload TOML File</label>
+          <input class="form-control" type="file" id="tomlFile" accept=".toml">
+        </div>
+
+        <div class="d-grid">
+          <button type="button" id="analyzeBtn" class="btn btn-primary">Analyze Dependencies</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4 d-none" id="resultsCard">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Analysis Results</h5>
+        <span class="badge bg-primary" id="totalLibraries">0</span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+          <span class="badge bg-success" id="upToDateBadge">Up to date: 0</span>
+          <span class="badge bg-danger" id="outdatedBadge">Outdated: 0</span>
+          <span class="badge bg-warning" id="rcBadge">RC available: 0</span>
+          <span class="badge bg-info" id="betaBadge">Beta available: 0</span>
+          <span class="badge bg-secondary" id="unknownBadge">Unknown: 0</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-striped table-hover" id="resultsTable">
+            <thead>
+              <tr>
+                <th>Library</th>
+                <th>Current Version</th>
+                <th>Latest Version</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+              <!-- Results will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-3">
+          <button type="button" id="generateUpdatedBtn" class="btn btn-success">Generate Updated Version Catalog</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-4 d-none" id="releaseNotesCard">
+      <div class="card-header">
+        <h5 class="card-title mb-0" id="releaseNotesTitle">Release Notes</h5>
+      </div>
+      <div class="card-body">
+        <div id="releaseNotesContent">
+          <p class="text-muted">Select a library to view release notes</p>
+        </div>
+
+        <div class="mt-3">
+          <a href="#" target="_blank" id="viewDocumentationBtn" class="btn btn-outline-primary">View Documentation</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4 d-none" id="updatedTomlCard">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Updated Version Catalog</h5>
+        <button class="btn btn-sm btn-outline-primary" id="copyUpdatedToml">Copy to Clipboard</button>
+      </div>
+      <div class="card-body">
+        <pre class="bg-light p-3 rounded" id="updatedTomlContent"><code># Updated AndroidX Version Catalog</code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    document.getElementById('tomlFile').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('tomlContent').value = e.target.result;
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Store analysis results
+    let analysisData = null;
+    let originalToml = null;
+
+    // Analyze button click handler
+    document.getElementById('analyzeBtn').addEventListener('click', async function() {
+      const tomlContent = document.getElementById('tomlContent').value.trim();
+
+      if (!tomlContent) {
+        alert('Please paste TOML content or upload a file');
+        return;
+      }
+
+      try {
+        // Store original TOML
+        originalToml = tomlContent;
+
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+
+        // Send to API
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ content: tomlContent })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          // Show detailed error message
+          let errorMessage = result.message || 'Failed to analyze TOML';
+
+          if (result.details && result.details.line) {
+            errorMessage += `\n\nError at line ${result.details.line}, column ${result.details.column}`;
+
+            // Highlight the problematic line
+            const lines = tomlContent.split('\n');
+            if (lines.length >= result.details.line) {
+              const problemLine = lines[result.details.line - 1];
+              errorMessage += `\n\n${problemLine}`;
+
+              // Add a pointer to the column
+              if (result.details.column) {
+                errorMessage += `\n${' '.repeat(result.details.column - 1)}^`;
+              }
+            }
+          }
+
+          throw new Error(errorMessage);
+        }
+
+        // Store analysis data
+        analysisData = result.data;
+
+        // Update UI with results
+        displayResults(analysisData);
+
+        // Reset button
+        this.disabled = false;
+        this.textContent = 'Analyze Dependencies';
+
+      } catch (error) {
+        // Show error in a more user-friendly way
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger mt-3';
+        errorDiv.innerHTML = `<strong>Error:</strong> ${error.message.replace(/\n/g, '<br>')}`;
+
+        // Add a close button
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'btn-close';
+        closeButton.setAttribute('data-bs-dismiss', 'alert');
+        closeButton.setAttribute('aria-label', 'Close');
+        errorDiv.prepend(closeButton);
+
+        // Add the error message to the UI
+        const inputCard = document.querySelector('.card:first-child .card-body');
+
+        // Remove any existing error messages
+        const existingErrors = inputCard.querySelectorAll('.alert-danger');
+        existingErrors.forEach(el => el.remove());
+
+        // Add the new error message
+        inputCard.appendChild(errorDiv);
+
+        // Reset button
+        this.disabled = false;
+        this.textContent = 'Analyze Dependencies';
+      }
+    });
+
+    // Display results function
+    function displayResults(data) {
+      // Show results card
+      document.getElementById('resultsCard').classList.remove('d-none');
+
+      // Update summary badges
+      document.getElementById('totalLibraries').textContent = data.totalLibraries;
+      document.getElementById('upToDateBadge').textContent = `Up to date: ${data.upToDate}`;
+      document.getElementById('outdatedBadge').textContent = `Outdated: ${data.outdated}`;
+      document.getElementById('unknownBadge').textContent = `Unknown: ${data.unknown}`;
+
+      // Count RC and Beta available
+      const rcCount = data.results.filter(r => r.status === 'rc-available').length;
+      const betaCount = data.results.filter(r => r.status === 'beta-available').length;
+
+      document.getElementById('rcBadge').textContent = `RC available: ${rcCount}`;
+      document.getElementById('betaBadge').textContent = `Beta available: ${betaCount}`;
+
+      // Clear previous results
+      const tableBody = document.getElementById('resultsTableBody');
+      tableBody.innerHTML = '';
+
+      // Add results to table
+      data.results.forEach(result => {
+        const row = document.createElement('tr');
+
+        // Set row class based on status
+        if (result.status === 'outdated') {
+          row.classList.add('table-danger');
+        } else if (result.status === 'rc-available') {
+          row.classList.add('table-warning');
+        } else if (result.status === 'beta-available') {
+          row.classList.add('table-info');
+        } else if (result.status === 'up-to-date') {
+          row.classList.add('table-success');
+        }
+
+        // Format status text
+        let statusText = 'Unknown';
+        let statusClass = 'bg-secondary';
+
+        if (result.status === 'outdated') {
+          statusText = 'Outdated';
+          statusClass = 'bg-danger';
+        } else if (result.status === 'rc-available') {
+          statusText = 'RC Available';
+          statusClass = 'bg-warning';
+        } else if (result.status === 'beta-available') {
+          statusText = 'Beta Available';
+          statusClass = 'bg-info';
+        } else if (result.status === 'up-to-date') {
+          statusText = 'Up to date';
+          statusClass = 'bg-success';
+        }
+
+        // Create row content
+        row.innerHTML = `
+          <td>${result.module}</td>
+          <td>${result.currentVersion}</td>
+          <td>${result.latestVersion || '-'}</td>
+          <td><span class="badge ${statusClass}">${statusText}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-info view-notes-btn"
+                    data-library="${result.libraryName}"
+                    data-version="${result.latestVersion || result.currentVersion}">
+              View Notes
+            </button>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+
+      // Add event listeners to view notes buttons
+      document.querySelectorAll('.view-notes-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const libraryName = this.getAttribute('data-library');
+          const version = this.getAttribute('data-version');
+          loadReleaseNotes(libraryName, version);
+        });
+      });
+    }
+
+    // Load release notes function
+    async function loadReleaseNotes(libraryName, version) {
+      try {
+        // Show release notes card
+        const releaseNotesCard = document.getElementById('releaseNotesCard');
+        releaseNotesCard.classList.remove('d-none');
+
+        // Update title
+        document.getElementById('releaseNotesTitle').textContent = `${libraryName} Release Notes`;
+
+        // Show loading
+        document.getElementById('releaseNotesContent').innerHTML = `
+          <div class="d-flex justify-content-center">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        `;
+
+        // Fetch release notes
+        const response = await fetch(`/api/release-notes/${libraryName}/${version}`);
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to load release notes');
+        }
+
+        // Update content
+        const releaseNotesContent = document.getElementById('releaseNotesContent');
+        const library = result.data.library;
+
+        // Format content
+        let content = `
+          <h6>Library: ${library.name}</h6>
+          <p><strong>Group ID:</strong> ${library.groupId}</p>
+          <p><strong>Current Version:</strong> ${version}</p>
+
+          <h6 class="mt-4">Available Versions</h6>
+          <ul class="list-group">
+        `;
+
+        if (library.stableRelease) {
+          content += `<li class="list-group-item list-group-item-success"><strong>Stable:</strong> ${library.stableRelease}</li>`;
+        }
+        if (library.rcRelease) {
+          content += `<li class="list-group-item list-group-item-warning"><strong>RC:</strong> ${library.rcRelease}</li>`;
+        }
+        if (library.betaRelease) {
+          content += `<li class="list-group-item list-group-item-info"><strong>Beta:</strong> ${library.betaRelease}</li>`;
+        }
+        if (library.alphaRelease) {
+          content += `<li class="list-group-item list-group-item-light"><strong>Alpha:</strong> ${library.alphaRelease}</li>`;
+        }
+
+        content += `
+          </ul>
+
+          <p class="mt-3">
+            For detailed release notes, please visit the official documentation.
+          </p>
+        `;
+
+        releaseNotesContent.innerHTML = content;
+
+        // Update documentation link
+        const docBtn = document.getElementById('viewDocumentationBtn');
+        docBtn.href = result.data.releaseNotesUrl;
+        docBtn.textContent = `View ${library.name} Documentation`;
+
+      } catch (error) {
+        document.getElementById('releaseNotesContent').innerHTML = `
+          <div class="alert alert-danger">
+            Error loading release notes: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Generate updated version catalog
+    document.getElementById('generateUpdatedBtn').addEventListener('click', function() {
+      if (!analysisData || !originalToml) {
+        alert('No analysis data available');
+        return;
+      }
+
+      try {
+        // Parse original TOML (simple parsing, not perfect)
+        const lines = originalToml.split('\n');
+        const updatedLines = [...lines];
+
+        // Find outdated libraries
+        const outdatedLibs = analysisData.results.filter(r =>
+          r.status === 'outdated' || r.status === 'rc-available' || r.status === 'beta-available'
+        );
+
+        // For each outdated library
+        outdatedLibs.forEach(lib => {
+          if (!lib.latestVersion) return;
+
+          // If it uses version.ref
+          if (lib.versionRef) {
+            // Find the version in [versions] section
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (line.startsWith(lib.versionRef) && line.includes('=')) {
+                // Replace version
+                const parts = line.split('=');
+                updatedLines[i] = `${parts[0]}= "${lib.latestVersion}"`;
+                break;
+              }
+            }
+          } else {
+            // Find the library in [libraries] section
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (line.includes(lib.module) && line.includes('version')) {
+                // Replace version
+                updatedLines[i] = line.replace(/version\s*=\s*"[^"]+"/, `version = "${lib.latestVersion}"`);
+                break;
+              }
+            }
+          }
+        });
+
+        // Show updated TOML
+        const updatedToml = updatedLines.join('\n');
+        document.getElementById('updatedTomlContent').textContent = updatedToml;
+        document.getElementById('updatedTomlCard').classList.remove('d-none');
+
+      } catch (error) {
+        alert('Error generating updated catalog: ' + error.message);
+      }
+    });
+
+// Copy updated TOML
+    document.getElementById('copyUpdatedToml').addEventListener('click', function() {
+      const content = document.getElementById('updatedTomlContent').textContent;
+      navigator.clipboard.writeText(content)
+        .then(() => {
+          this.textContent = 'Copied!';
+          setTimeout(() => {
+            this.textContent = 'Copy to Clipboard';
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy: ', err);
+          alert('Failed to copy to clipboard');
+        });
+    });
+
+    // Helper function to parse TOML version references
+    function findVersionRef(libraryData) {
+      // Check if the library uses version.ref
+      if (typeof libraryData === 'object' && libraryData.version && libraryData.version.ref) {
+        return libraryData.version.ref;
+      }
+      return null;
+    }
+
+    // Add a sample TOML button for testing
+    const sampleTomlBtn = document.createElement('button');
+    sampleTomlBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+    sampleTomlBtn.textContent = 'Load Sample TOML';
+    sampleTomlBtn.addEventListener('click', function() {
+      document.getElementById('tomlContent').value = `[versions]
+activity = "1.8.0"
+appcompat = "1.6.1"
+compose = "1.5.0"
+compose-compiler = "1.5.0"
+compose-material3 = "1.1.0"
+core-ktx = "1.12.0"
+lifecycle = "2.6.2"
+material = "1.10.0"
+
+[libraries]
+activity = { module = "androidx.activity:activity", version.ref = "activity" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+compose-compiler = { module = "androidx.compose.compiler:compiler", version.ref = "compose-compiler" }
+compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "compose-material3" }
+compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
+compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+material = { module = "com.google.android.material:material", version.ref = "material" }`;
+    });
+
+    // Add the sample button to the UI
+    document.querySelector('.card-body .mb-3:last-of-type').appendChild(sampleTomlBtn);
+
+    // Add filter functionality
+    const filterInput = document.createElement('input');
+    filterInput.type = 'text';
+    filterInput.className = 'form-control mb-3';
+    filterInput.placeholder = 'Filter libraries...';
+    filterInput.addEventListener('input', function() {
+      const filterText = this.value.toLowerCase();
+      const rows = document.querySelectorAll('#resultsTableBody tr');
+
+      rows.forEach(row => {
+        const libraryName = row.cells[0].textContent.toLowerCase();
+        if (libraryName.includes(filterText)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    });
+
+    // Add filter input before the results table
+    const resultsCard = document.getElementById('resultsCard');
+    const tableContainer = resultsCard.querySelector('.table-responsive');
+    resultsCard.querySelector('.card-body').insertBefore(filterInput, tableContainer);
+
+    // Add status filter buttons
+    const statusFilterContainer = document.createElement('div');
+    statusFilterContainer.className = 'btn-group mb-3';
+    statusFilterContainer.setAttribute('role', 'group');
+    statusFilterContainer.innerHTML = `
+      <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+      <button type="button" class="btn btn-outline-danger" data-filter="outdated">Outdated</button>
+      <button type="button" class="btn btn-outline-warning" data-filter="rc">RC Available</button>
+      <button type="button" class="btn btn-outline-info" data-filter="beta">Beta Available</button>
+      <button type="button" class="btn btn-outline-success" data-filter="up-to-date">Up to date</button>
+      <button type="button" class="btn btn-outline-secondary" data-filter="unknown">Unknown</button>
+    `;
+
+    // Add status filter buttons before the filter input
+    resultsCard.querySelector('.card-body').insertBefore(statusFilterContainer, filterInput);
+
+    // Add event listeners to status filter buttons
+    statusFilterContainer.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Update active button
+        statusFilterContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        const filter = this.getAttribute('data-filter');
+        const rows = document.querySelectorAll('#resultsTableBody tr');
+
+        rows.forEach(row => {
+          if (filter === 'all') {
+            row.style.display = '';
+            return;
+          }
+
+          const statusCell = row.cells[3];
+          const statusText = statusCell.textContent.trim().toLowerCase();
+
+          if (filter === 'outdated' && statusText === 'outdated') {
+            row.style.display = '';
+          } else if (filter === 'rc' && statusText === 'rc available') {
+            row.style.display = '';
+          } else if (filter === 'beta' && statusText === 'beta available') {
+            row.style.display = '';
+          } else if (filter === 'up-to-date' && statusText === 'up to date') {
+            row.style.display = '';
+          } else if (filter === 'unknown' && statusText === 'unknown') {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // Add sort functionality
+    document.querySelectorAll('#resultsTable th').forEach((th, index) => {
+      if (index < 4) { // Don't add sorting to Actions column
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => sortTable(index));
+        th.innerHTML += ' <span class="sort-icon">↕️</span>';
+      }
+    });
+
+    let sortDirection = 1; // 1 for ascending, -1 for descending
+    let lastSortedColumn = -1;
+
+    function sortTable(columnIndex) {
+      const table = document.getElementById('resultsTable');
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+      // Update sort direction
+      if (lastSortedColumn === columnIndex) {
+        sortDirection *= -1;
+      } else {
+        sortDirection = 1;
+        lastSortedColumn = columnIndex;
+      }
+
+      // Update sort icons
+      document.querySelectorAll('#resultsTable th .sort-icon').forEach(icon => {
+        icon.textContent = '↕️';
+      });
+
+      const currentIcon = table.querySelector(`th:nth-child(${columnIndex + 1}) .sort-icon`);
+      currentIcon.textContent = sortDirection === 1 ? '↓' : '↑';
+
+      // Sort rows
+      rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+
+        // Special handling for version comparison
+        if (columnIndex === 1 || columnIndex === 2) {
+          return compareVersions(aValue, bValue) * sortDirection;
+        }
+
+        return aValue.localeCompare(bValue) * sortDirection;
+      });
+
+      // Reorder rows
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Version comparison function
+    function compareVersions(a, b) {
+      if (a === '-') return -1;
+      if (b === '-') return 1;
+
+      const aParts = a.split(/[\.-]/).map(part => {
+        return /^\d+$/.test(part) ? parseInt(part) : part;
+      });
+
+      const bParts = b.split(/[\.-]/).map(part => {
+        return /^\d+$/.test(part) ? parseInt(part) : part;
+      });
+
+      const minLength = Math.min(aParts.length, bParts.length);
+
+      for (let i = 0; i < minLength; i++) {
+        if (typeof aParts[i] === 'number' && typeof bParts[i] === 'number') {
+          if (aParts[i] !== bParts[i]) {
+            return aParts[i] - bParts[i];
+          }
+        } else {
+          const aStr = String(aParts[i]);
+          const bStr = String(bParts[i]);
+
+          if (aStr !== bStr) {
+            // alpha < beta < rc < (sem sufixo)
+            if (aStr.includes('alpha')) return -1;
+            if (bStr.includes('alpha')) return 1;
+            if (aStr.includes('beta')) return -1;
+            if (bStr.includes('beta')) return 1;
+            if (aStr.includes('rc')) return -1;
+            if (bStr.includes('rc')) return 1;
+
+            return aStr.localeCompare(bStr);
+          }
+        }
+      }
+
+      return aParts.length - bParts.length;
+    }
+  });
+</script>
+{% endblock %}
